@@ -78,6 +78,10 @@ public class PacketGiveItem implements CustomPacketPayload {
     }
 
     private static boolean tryConsumeKeys(Player entity, ItemStack box) {
+        if (entity.hasInfiniteMaterials()) {
+            return true;
+        }
+
         return Optional.ofNullable(ItemCsgoBox.getKey(box)).map(key -> {
             for (int i = 0; i < entity.getInventory().getContainerSize(); i++) {
                 ItemStack stack = entity.getInventory().getItem(i);
@@ -86,6 +90,13 @@ public class PacketGiveItem implements CustomPacketPayload {
                     stack.shrink(1);
                     return true;
                 }
+            }
+
+            ItemStack offhand = entity.getOffhandItem();
+
+            if (!offhand.isEmpty() && key.equals(Objects.requireNonNull(BuiltInRegistries.ITEM.getKey(offhand.getItem())).toString())) {
+                offhand.shrink(1);
+                return true;
             }
 
             return false;

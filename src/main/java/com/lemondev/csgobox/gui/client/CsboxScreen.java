@@ -29,6 +29,7 @@ public class CsboxScreen extends Screen {
     private ItemStack itemKey = ItemStack.EMPTY;
     private ItemStack itemMenu = ItemStack.EMPTY;
     private int boxKeyCount;
+    private Component statusMessage = Component.empty();
 
     public CsboxScreen() {
         super(Component.literal("cs_screen"));
@@ -99,7 +100,11 @@ public class CsboxScreen extends Screen {
         if (!itemKey.isEmpty()) {
             guiGraphics.drawString(this.font, Component.translatable("gui.csgobox.csgo_box.label_open"), 24, this.height - 56, 0xD3D3D3);
             guiGraphics.renderItem(itemKey, 24, this.height - 36);
-            guiGraphics.drawString(this.font, "x" + boxKeyCount, 46, this.height - 32, boxKeyCount > 0 ? 0xFFFFFF : 0xAAAAAA);
+            if (entity != null && entity.hasInfiniteMaterials()) {
+                guiGraphics.drawString(this.font, "Creative", 46, this.height - 32, 0x55FF55);
+            } else {
+                guiGraphics.drawString(this.font, "x" + boxKeyCount, 46, this.height - 32, boxKeyCount > 0 ? 0xFFFFFF : 0xAAAAAA);
+            }
         }
 
         for (int i = 0; i < itemsList.size() && i < 20; i++) {
@@ -111,6 +116,10 @@ public class CsboxScreen extends Screen {
             guiGraphics.drawString(this.font, String.valueOf(gradeList.get(i)), x + 1, y + 18, 0xA0A0A0);
         }
 
+        if (!statusMessage.getString().isEmpty()) {
+            guiGraphics.drawString(this.font, statusMessage, this.width - 220, this.height - 60, 0xFF8080);
+        }
+
         super.render(guiGraphics, mouseX, mouseY, partialTicks);
     }
 
@@ -118,6 +127,7 @@ public class CsboxScreen extends Screen {
     public void tick() {
         super.tick();
         this.boxKeyCount = getBoxKeyCount();
+        this.statusMessage = canOpenBox() ? Component.empty() : Component.literal("Missing key");
     }
 
     @Override
@@ -125,9 +135,11 @@ public class CsboxScreen extends Screen {
         super.init();
 
         this.addRenderableWidget(Button.builder(Component.translatable("gui.csgobox.csgo_box.open_box"), button -> {
-            if (ItemCsgoBox.getKey(itemMenu) != null && entity.getMainHandItem().getItem() instanceof ItemCsgoBox && getBoxKeyCount() > 0) {
+            if (entity != null && entity.getMainHandItem().getItem() instanceof ItemCsgoBox && canOpenBox()) {
                 ClientBoxState.clear();
                 Minecraft.getInstance().setScreen(new CsboxProgressScreen());
+            } else {
+                statusMessage = Component.literal("Missing key");
             }
         }).bounds(this.width - 190, this.height - 34, 80, 20).build());
 
@@ -141,17 +153,45 @@ public class CsboxScreen extends Screen {
     }
 
     private int getBoxKeyCount() {
-        if (entity == null || ItemCsgoBox.getKey(itemMenu) == null) {
+        String requiredKey = ItemCsgoBox.getKey(itemMenu);
+
+        if (entity == null || requiredKey == null || requiredKey.isBlank()) {
             return 0;
         }
 
+        int total = 0;
+
         for (int i = 0; i < entity.getInventory().getContainerSize(); i++) {
             ItemStack stack = entity.getInventory().getItem(i);
-            if (Objects.requireNonNull(BuiltInRegistries.ITEM.getKey(stack.getItem())).toString().equals(ItemCsgoBox.getKey(itemMenu))) {
-                return stack.getCount();
+            if (Objects.requireNonNull(BuiltInRegistries.ITEM.getKey(stack.getItem())).toString().equals(requiredKey)) {
+                total += stack.getCount();
             }
         }
 
-        return 0;
+        ItemStack offhand = entity.getOffhandItem();
+
+        if (!offhand.isEmpty() && Objects.requireNonNull(BuiltInRegistries.ITEM.getKey(offhand.getItem())).toString().equals(requiredKey)) {
+            total += offhand.getCount();
+        }
+
+        return total;
+    }
+
+    private boolean canOpenBox() {
+        String requiredKey = ItemCsgoBox.getKey(itemMenu);
+
+        if (entity == null) {
+            return false;
+        }
+
+        if (requiredKey == null || requiredKey.isBlank()) {
+            return true;
+        }
+
+        if (entity.hasInfiniteMaterials()) {
+            return true;
+        }
+
+        return getBoxKeyCount() > 0;
     }
 }
