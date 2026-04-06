@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.reclizer.csgobox.mixin",
+  "package": "com.lemondev.csgobox.mixin",
   "compatibilityLevel": "JAVA_8",
   "refmap": "CsgoBox.refmap.json",
   "mixins": [
